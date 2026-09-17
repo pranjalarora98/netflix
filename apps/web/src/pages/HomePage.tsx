@@ -15,11 +15,7 @@ export default function HomePage() {
   return (
     <main className="container">
       <div className="card">
-        <div className="notice">
-          UI is ready. Connect <code>listVideos()</code> in Lesson 6 after the API is implemented.
-        </div>
-
-        <h1>Netflix Adaptive Stream</h1>
+        <h1>Adaptive Streaming</h1>
         <p>HLS video processing powered by Temporal workers and FFmpeg.</p>
         <p>
           <Link to="/upload">Upload a new video</Link>
@@ -42,16 +38,16 @@ export default function HomePage() {
               }}
             >
               <div>
-                <strong>{video.originalFilename ?? video.videoId}</strong>
+                <strong>{video.originalFileName || 'Untitled video'}</strong>
+                <div>
+                  <Link to={`/stream/${video.videoId}`}>{video.videoId}</Link>
+                </div>
                 <div>
                   <span className={`status status-${video.processingStatus.toLowerCase()}`}>
                     {video.processingStatus}
                   </span>
                 </div>
               </div>
-              {video.processingStatus === 'COMPLETED' && (
-                <Link to={`/stream/${video.videoId}`}>Watch</Link>
-              )}
             </li>
           ))}
         </ul>

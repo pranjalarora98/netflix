@@ -25,9 +25,8 @@ export default function UploadPage() {
       } else {
         setMessage(response.message || 'Upload failed');
       }
-    } catch (error) {
-      const text = error instanceof Error ? error.message : 'Something went wrong during upload.';
-      setMessage(text);
+    } catch {
+      setMessage('Something went wrong during upload.');
     } finally {
       setUploading(false);
     }
@@ -36,10 +35,6 @@ export default function UploadPage() {
   return (
     <main className="container">
       <div className="card">
-        <div className="notice">
-          UI is ready. Connect <code>uploadVideo()</code> in Lesson 6 after the API is implemented.
-        </div>
-
         <h1>Upload Video</h1>
         <p>Select a video file to upload. Processing runs asynchronously in Temporal workers.</p>
 
