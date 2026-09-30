@@ -77,12 +77,13 @@
 
 import path from "path";
 import fs from 'fs/promises';
-import {Ffmpeg} from "fluent-ffmpeg";
+import ffmpeg from "fluent-ffmpeg";
 import { config } from "../config";
 import { Resolution } from "@adaptive-streaming/shared";
 
-Ffmpeg.setFfmpegPath(config.ffmpegPath);
-Ffmpeg.setFfprobePath(config.ffprobePath);
+ffmpeg.setFfmpegPath(config.ffmpegPath);
+ffmpeg.setFfprobePath(config.ffprobePath);
+
 
 /* ═══════════════════════════════════════════════════════════════════════════
  * TASK 2 — resolveMediaPath(relativePath) → absolute path
@@ -164,7 +165,7 @@ export function resolveMediaPath(relativePath: string) {
 
 // write ensureOutputDirectory here
 
-async function ensureOutputDirectory(outputRelativePath:string) {
+export async function ensureOutputDirectory(outputRelativePath:string) {
    const resolvedPath = resolveMediaPath(outputRelativePath);
    await fs.mkdir(resolvedPath,{recursive:true});
 }
@@ -193,7 +194,7 @@ async function ensureOutputDirectory(outputRelativePath:string) {
 
 // write deleteSourceFile here
 
-async function deleteSourceFile(inputRelativePath:string) {
+export async function deleteSourceFile(inputRelativePath:string) {
     const inputPath = resolveMediaPath(inputRelativePath);
  const exists = await fs.access(inputPath).then(()=>true).catch(()=>false);
   
@@ -279,12 +280,33 @@ async function deleteSourceFile(inputRelativePath:string) {
 
 // write transcodeResolution here
 
-async function transcodeResolution(inputRel:string, outputRel:string, resolution:Resolution){
+export async function transcodeResolution(inputRel:string, outputRel:string, resolution:Resolution){
+
+    const {width,height,label} = resolution;
+
     const inputPath = resolveMediaPath(inputRel);
     const outputPath = resolveMediaPath(outputRel);
     const variantOutput = path.join(outputPath,resolution.label);
     const variantPlaylist = path.join(variantOutput,'playlist.m3u8');
-    await fs.mkdir(variantPlaylist,{recursive:true})
+    await fs.mkdir(variantPlaylist,{recursive:true});
+    
+    await new Promise((resolve,reject)=>{
+        ffmpeg(inputPath).
+        outputOptions([
+  `-vf scale=${resolution.width}:${resolution.height}`,
+  `-b:v ${resolution.bitRate}k`,
+  '-codec:v libx264',
+  '-codec:a aac',
+  '-hls_time 10',
+  '-hls_playlist_type vod',
+  `-hls_segment_filename ${path.join(
+    variantOutput,
+    'segment-%05d.ts'
+  )}`,
+]).on('end',()=>resolve(true)).on('error',(err:Error)=>reject(err)).run();
+    })
+
+return `#EXT-X-STREAM-INF:BANDWIDTH=${resolution.bitRate * 1000},RESOLUTION=${width}x${height}\n${label}/playlist.m3u8`;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -317,6 +339,15 @@ async function transcodeResolution(inputRel:string, outputRel:string, resolution
  * ═══════════════════════════════════════════════════════════════════════════ */
 
 // write writeMasterPlaylist here
+
+ export async function writeMasterPlaylist(outputRelativePath: string,resolutionEntries: string[]) {
+     const targetPath = resolveMediaPath(outputRelativePath);
+     const masterPath = path.join(targetPath,'master.m3u8');
+
+     const body = `#EXTM3U\n${resolutionEntries.join('\n')}\n`;
+     await fs.writeFile(masterPath,body);
+    return `${outputRelativePath}/master.m3u8`;
+ }
 
 /* ═══════════════════════════════════════════════════════════════════════════
  * WHEN YOU ARE DONE
