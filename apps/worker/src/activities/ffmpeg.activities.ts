@@ -12,3 +12,18 @@ export function resolveMediaPath(relativePath: string) {
    const resolvedPath = path.resolve(config.mediaRoot,trimmedPath);
    return resolvedPath; 
 }
+
+export async function ensureOutputDirectory(outputRelativePath:string) {
+   const resolvedPath = resolveMediaPath(outputRelativePath);
+   await fs.mkdir(resolvedPath,{recursive:true});
+}
+
+export async function deleteSourceFile(inputRelativePath:string) {
+    const inputPath = resolveMediaPath(inputRelativePath);
+ const exists = await fs.access(inputPath).then(()=>true).catch(()=>false);
+  
+ if(exists) {
+    await fs.unlink(inputPath);
+ }
+
+}
