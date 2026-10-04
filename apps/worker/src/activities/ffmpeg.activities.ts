@@ -27,3 +27,33 @@ export async function deleteSourceFile(inputRelativePath:string) {
  }
 
 }
+
+export async function transcodeResolution(inputRel:string, outputRel:string, resolution:Resolution){
+
+    const {width,height,label} = resolution;
+
+    const inputPath = resolveMediaPath(inputRel);
+    const outputPath = resolveMediaPath(outputRel);
+    const variantOutput = path.join(outputPath,resolution.label);
+    const variantPlaylist = path.join(variantOutput,'playlist.m3u8');
+    
+    await fs.mkdir(variantOutput,{recursive:true});
+    
+    await new Promise((resolve,reject)=>{
+        ffmpeg(inputPath).
+        outputOptions([
+  `-vf scale=${resolution.width}:${resolution.height}`,
+  `-b:v ${resolution.bitRate}k`,
+  '-codec:v libx264',
+  '-codec:a aac',
+  '-hls_time 10',
+  '-hls_playlist_type vod',
+  `-hls_segment_filename ${path.join(
+    variantOutput,
+    'segment-%05d.ts'
+  )}`,
+]).output(variantPlaylist).on('end',()=>resolve(true)).on('error',(err:Error)=>reject(err)).run();
+    })
+
+return `#EXT-X-STREAM-INF:BANDWIDTH=${resolution.bitRate * 1000},RESOLUTION=${width}x${height}\n${label}/playlist.m3u8`;
+}
