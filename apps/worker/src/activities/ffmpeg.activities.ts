@@ -57,3 +57,12 @@ export async function transcodeResolution(inputRel:string, outputRel:string, res
 
 return `#EXT-X-STREAM-INF:BANDWIDTH=${resolution.bitRate * 1000},RESOLUTION=${width}x${height}\n${label}/playlist.m3u8`;
 }
+
+ export async function writeMasterPlaylist(outputRelativePath: string,resolutionEntries: string[]) {
+     const targetPath = resolveMediaPath(outputRelativePath);
+     const masterPath = path.join(targetPath,'master.m3u8');
+
+     const body = `#EXTM3U\n${resolutionEntries.join('\n')}\n`;
+     await fs.writeFile(masterPath,body);
+    return `${outputRelativePath}/master.m3u8`;
+ }
