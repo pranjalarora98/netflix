@@ -14,7 +14,7 @@ const { prisma } = require('../packages/db/dist');
 async function main() {
   // the API will use String(Date.now()) too
   const videoId = String(Date.now());
-  const inputRelativePath = 'uploads/demo.mp4';
+  const inputRelativePath = process.argv[2] || 'uploads/demo.mp4';
   const outputRelativePath = `output/${videoId}`;
 
   // 1. the row MUST exist first — updateVideoStatus does prisma.video.update,
