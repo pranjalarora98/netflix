@@ -17,4 +17,20 @@ model Video {
 
   @@index([status])
   @@index([createdAt])
+
+  variants VideoVariant[]
+}
+
+model VideoVariant {
+  id    String    @id @default(uuid())
+  resolution String 
+  label String
+  status String @default("pending")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt 
+  videoId String
+  video Video @relation(fields:[videoId],references:[id],onDelete: Cascade)
+
+  @@index([videoId,status])
+  @@unique([videoId,label])
 }
