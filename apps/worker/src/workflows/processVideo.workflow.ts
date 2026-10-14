@@ -16,13 +16,19 @@ export async function processVideoWorkflow(input: ProcessVideoInput) {
 
     try {
         await updateVideoStatus(videoId,'processing');
-
-        const resolutionEntries = await Promise.all(
+  
+        const resolutionEntries = await Promise.allSettled(
             RESOLUTIONS.map((resolution)=>{
-            return transcodeResolution(inputRelativePath,outputRelativePath,resolution);
+            return transcodeResolution(inputRelativePath,outputRelativePath,resolution,videoId);
         }))
+
+        const allSettleResolutions = resolutionEntries.filter((item)=>item.status === 'fulfilled').map((item)=>item.value);
+
+        if(!allSettleResolutions.length) {
+            throw new Error('No resolution succeeded');
+        }
          
-        await writeMasterPlaylist(outputRelativePath,resolutionEntries);
+        await writeMasterPlaylist(outputRelativePath,allSettleResolutions);
 
         await updateVideoStatus(videoId,'completed');
 
