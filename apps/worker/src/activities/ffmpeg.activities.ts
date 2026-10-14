@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import ffmpeg from "fluent-ffmpeg";
 import { config } from "../config";
 import { Resolution } from "@adaptive-streaming/shared";
+import prisma from '../lib/prisma';
 
 ffmpeg.setFfmpegPath(config.ffmpegPath);
 ffmpeg.setFfprobePath(config.ffprobePath);
@@ -28,7 +29,7 @@ export async function deleteSourceFile(inputRelativePath:string) {
 
 }
 
-export async function transcodeResolution(inputRel:string, outputRel:string, resolution:Resolution){
+export async function transcodeResolution(inputRel:string, outputRel:string, resolution:Resolution,videoId: string){
 
     const {width,height,label} = resolution;
 
@@ -39,23 +40,66 @@ export async function transcodeResolution(inputRel:string, outputRel:string, res
     
     await fs.mkdir(variantOutput,{recursive:true});
     
-    await new Promise((resolve,reject)=>{
-        ffmpeg(inputPath).
-        outputOptions([
-  `-vf scale=${resolution.width}:${resolution.height}`,
-  `-b:v ${resolution.bitRate}k`,
-  '-codec:v libx264',
-  '-codec:a aac',
-  '-hls_time 10',
-  '-hls_playlist_type vod',
-  `-hls_segment_filename ${path.join(
-    variantOutput,
-    'segment-%05d.ts'
-  )}`,
-]).output(variantPlaylist).on('end',()=>resolve(true)).on('error',(err:Error)=>reject(err)).run();
-    })
+    await new Promise((resolve, reject) => {
+      ffmpeg(inputPath)
+        .outputOptions([
+          `-vf scale=${resolution.width}:${resolution.height}`,
+          `-b:v ${resolution.bitRate}k`,
+          "-codec:v libx264",
+          "-codec:a aac",
+          "-hls_time 10",
+          "-hls_playlist_type vod",
+          `-hls_segment_filename ${path.join(
+            variantOutput,
+            "segment-%05d.ts",
+          )}`,
+        ])
+        .output(variantPlaylist)
+        .on("end", async () => {
+         await prisma.videoVariant.upsert({
+            where:{
+               videoId_label:{
+               videoId,
+              label:resolution.label,
+               }
+            },
+            update:{
+               status: "completed",
+            },
+            create:{
+               videoId,
+               label:resolution.label,
+               status:'completed',
+               resolution:`${resolution.width}X${resolution.height}`,
+            }
+          });
+          resolve(true);
+        })
+        .on("error", async (err: Error) => {
+         await prisma.videoVariant.upsert({
+            where:{
+            videoId_label:{
+               videoId,
+              label:resolution.label,
+               }
+            },
+            update:{
+               status: "failed",
+            },
+            create:{
+               videoId,
+               label:resolution.label,
+               status:'failed',
+               resolution:`${resolution.width}X${resolution.height}`,
+            }
+          });
+                   reject(err);
+      }
+      )
+        .run();
+    });
 
-return `#EXT-X-STREAM-INF:BANDWIDTH=${resolution.bitRate * 1000},RESOLUTION=${width}x${height}\n${label}/playlist.m3u8`;
+    return `#EXT-X-STREAM-INF:BANDWIDTH=${resolution.bitRate * 1000},RESOLUTION=${width}x${height}\n${label}/playlist.m3u8`;
 }
 
  export async function writeMasterPlaylist(outputRelativePath: string,resolutionEntries: string[]) {
