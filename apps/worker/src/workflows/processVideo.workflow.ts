@@ -22,10 +22,12 @@ export async function processVideoWorkflow(input: ProcessVideoInput) {
             return transcodeResolution(inputRelativePath,outputRelativePath,resolution,videoId);
         }))
 
-        const allSettleResolutions = resolutionEntries.filter((item)=>item.status === 'fulfilled').map((item)=>item.value);
+        const allSettleResolutions = resolutionEntries
+          .filter((item) => item.status === "fulfilled")
+          .map((item) => item.value);
 
-        if(!allSettleResolutions.length) {
-            throw new Error('No resolution succeeded');
+        if (!allSettleResolutions.length && resolutionEntries.length>0) {
+          throw new Error("No resolution processed");
         }
          
         await writeMasterPlaylist(outputRelativePath,allSettleResolutions);
